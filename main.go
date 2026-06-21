@@ -9,7 +9,8 @@ import (
 
 func main() {
 	fmt.Println("Iniciando aplicação")
-	camara := camara.NewClient()
+	config := camara.DefaultConfig()
+	camara := camara.NewClient(config)
 	ctx := context.Background()
 
 	deputados, err := camara.GetDeputados(ctx)
@@ -23,4 +24,12 @@ func main() {
 
 	fmt.Printf("ID: %d - Nome: %s\n", deputado.ID, deputado.Nome)
 
+	despesas, err := camara.GetDeputadoDespesas(ctx, deputado.ID, 2026, 3)
+	if err != nil {
+		fmt.Printf("Falha na solicitação das despesas do deputado %s: %s", deputado.Nome, err)
+		return
+	}
+
+	despesa := despesas[0]
+	fmt.Printf("Despesa: %s\n", despesa.TipoDespesa)
 }

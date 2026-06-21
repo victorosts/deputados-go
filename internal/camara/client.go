@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"time"
 )
 
 type Client struct {
@@ -15,12 +14,12 @@ type Client struct {
 	baseURL string
 }
 
-func NewClient() *Client {
+func NewClient(config Config) *Client {
 	return &Client{
 		client: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: config.Timeout,
 		},
-		baseURL: "https://dadosabertos.camara.leg.br/api/v2/",
+		baseURL: config.BaseURL,
 	}
 }
 
