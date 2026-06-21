@@ -1,42 +1,64 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
+const baseURL string = "https://dadosabertos.camara.leg.br/api/v2/"
+
+var client = &http.Client{
+	Timeout: 10 * time.Second,
+}
+
+type Deputado struct {
+	ID   int    `json:"id"`
+	Nome string `json:"nome"`
+}
+
+type DeputadosResponse struct {
+	Dados []Deputado `json:"dados"`
+}
+
 func main() {
-	fmt.Println("start point")
+	fmt.Println("Iniciando aplicação")
 
-	GetDeputados()
-}
-
-func BaseRequest(endpoint string) (resp *http.Response, err error) {
-	baseUrl := "https://dadosabertos.camara.leg.br/api/v2/"
-	result, err := url.JoinPath(baseUrl, endpoint)
+	body, err := CamaraApiGet("deputados")
 	if err != nil {
-		panic(err)
+		fmt.Printf("Falha na solicitação dos dados dos deputados, ERR: %s", err.Error())
+		return
 	}
 
-	return http.Get(result)
+	var deputados DeputadosResponse
 
-}
-
-func GetDeputados() (string, error) {
-	resp, err := BaseRequest("deputados")
-	if err != nil {
-		return "", err
+	if err := json.Unmarshal(body, &deputados); err != nil {
+		fmt.Printf("Falha ao converter JSON: %v\n", err)
+		return
 	}
 
+	fmt.Println(deputados)
+}
+
+func CamaraApiGet(endpoint string) (body []byte, err error) {
+	result, err := url.JoinPath(baseURL, endpoint)
+	if err != nil {
+		return
+	}
+
+	resp, err := client.Get(result)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Erro ao consultar API da Camara: %s", resp.Status)
+	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	fmt.Println(string(body))
-	return string(body), nil
+	return
 }
