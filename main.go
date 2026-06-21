@@ -9,10 +9,9 @@ import (
 	"time"
 )
 
-const baseURL = "https://dadosabertos.camara.leg.br/api/v2/"
-
-var client = &http.Client{
-	Timeout: 10 * time.Second,
+type CamaraClient struct {
+	client  *http.Client
+	baseURL string
 }
 
 type Deputado struct {
@@ -46,10 +45,11 @@ type DespesasResponse struct {
 
 func main() {
 	fmt.Println("Iniciando aplicação")
+	camara := NewCamaraClient()
 
 	var deputados DeputadosResponse
 
-	if err := CamaraApiGet("deputados", nil, &deputados); err != nil {
+	if err := camara.ApiGet("deputados", nil, &deputados); err != nil {
 		fmt.Printf("Falha na solicitação dos dados dos deputados, ERR: %s", err.Error())
 		return
 	}
@@ -61,14 +61,14 @@ func main() {
 			break
 		}
 
-		detalhesDeputado, err := GetDeputado(deputado.ID)
+		detalhesDeputado, err := camara.GetDeputado(deputado.ID)
 		if err != nil {
 			fmt.Printf("Falha ao consultar os detalhes do deputado de ID: %d. Err: %s\n", deputado.ID, err)
 			continue
 		}
 		fmt.Printf("ID: %d - Nome Civil: %s\n", detalhesDeputado.ID, detalhesDeputado.NomeCivil)
 
-		despesas, err := GetDeputadoDespesas(deputado.ID, 2026, 3)
+		despesas, err := camara.GetDeputadoDespesas(deputado.ID, 2026, 3)
 		if err != nil {
 			fmt.Printf("Não foi possível retornar as despesas do deputado %s. Err: %s\n", detalhesDeputado.NomeCivil, err)
 			continue
@@ -86,45 +86,30 @@ func main() {
 
 }
 
-func GetDeputado(id int) (*DeputadoDetalhes, error) {
-	var response DeputadoDetalhesResponse
-
-	endpoint := fmt.Sprintf("deputados/%d", id)
-
-	if err := CamaraApiGet(endpoint, nil, &response); err != nil {
-		return nil, err
+func NewCamaraClient() *CamaraClient {
+	return &CamaraClient{
+		client: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+		baseURL: "https://dadosabertos.camara.leg.br/api/v2/",
 	}
-
-	return &response.Dados, nil
 }
 
-func GetDeputadoDespesas(id int, year int, month int) ([]Despesas, error) {
-	var response DespesasResponse
-
-	params := url.Values{
-		"ano": []string{strconv.Itoa(year)},
-		"mes": []string{strconv.Itoa(month)},
-	}
-	endpoint := fmt.Sprintf("deputados/%d/despesas", id)
-
-	if err := CamaraApiGet(endpoint, params, &response); err != nil {
-		return nil, err
-	}
-
-	return response.Dados, nil
-}
-
-func CamaraApiGet(endpoint string, params url.Values, target any) error {
-	result, err := url.JoinPath(baseURL, endpoint)
+func (c *CamaraClient) ApiGet(
+	endpoint string,
+	params url.Values,
+	target any,
+) error {
+	requestURL, err := url.JoinPath(c.baseURL, endpoint)
 	if err != nil {
 		return err
 	}
 
 	if len(params) > 0 {
-		result += "?" + params.Encode()
+		requestURL += "?" + params.Encode()
 	}
 
-	resp, err := client.Get(result)
+	resp, err := c.client.Get(requestURL)
 	if err != nil {
 		return err
 	}
@@ -136,4 +121,38 @@ func CamaraApiGet(endpoint string, params url.Values, target any) error {
 	}
 
 	return json.NewDecoder(resp.Body).Decode(target)
+}
+
+func (c *CamaraClient) GetDeputado(
+	id int,
+) (*DeputadoDetalhes, error) {
+	var response DeputadoDetalhesResponse
+
+	endpoint := fmt.Sprintf("deputados/%d", id)
+
+	if err := c.ApiGet(endpoint, nil, &response); err != nil {
+		return nil, fmt.Errorf("Busca detalhes do deputado %d: %w", id, err)
+	}
+
+	return &response.Dados, nil
+}
+
+func (c *CamaraClient) GetDeputadoDespesas(
+	id int,
+	year int,
+	month int,
+) ([]Despesas, error) {
+	var response DespesasResponse
+
+	params := url.Values{
+		"ano": []string{strconv.Itoa(year)},
+		"mes": []string{strconv.Itoa(month)},
+	}
+	endpoint := fmt.Sprintf("deputados/%d/despesas", id)
+
+	if err := c.ApiGet(endpoint, params, &response); err != nil {
+		return nil, fmt.Errorf("Busca despesas do deputado %d: %w", id, err)
+	}
+
+	return response.Dados, nil
 }
