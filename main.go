@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -47,9 +48,11 @@ func main() {
 	fmt.Println("Iniciando aplicação")
 	camara := NewCamaraClient()
 
+	ctx := context.Background()
+
 	var deputados DeputadosResponse
 
-	if err := camara.ApiGet("deputados", nil, &deputados); err != nil {
+	if err := camara.ApiGet(ctx, "deputados", nil, &deputados); err != nil {
 		fmt.Printf("Falha na solicitação dos dados dos deputados, ERR: %s", err.Error())
 		return
 	}
@@ -61,14 +64,14 @@ func main() {
 			break
 		}
 
-		detalhesDeputado, err := camara.GetDeputado(deputado.ID)
+		detalhesDeputado, err := camara.GetDeputado(ctx, deputado.ID)
 		if err != nil {
 			fmt.Printf("Falha ao consultar os detalhes do deputado de ID: %d. Err: %s\n", deputado.ID, err)
 			continue
 		}
 		fmt.Printf("ID: %d - Nome Civil: %s\n", detalhesDeputado.ID, detalhesDeputado.NomeCivil)
 
-		despesas, err := camara.GetDeputadoDespesas(deputado.ID, 2026, 3)
+		despesas, err := camara.GetDeputadoDespesas(ctx, deputado.ID, 2026, 3)
 		if err != nil {
 			fmt.Printf("Não foi possível retornar as despesas do deputado %s. Err: %s\n", detalhesDeputado.NomeCivil, err)
 			continue
@@ -95,42 +98,93 @@ func NewCamaraClient() *CamaraClient {
 	}
 }
 
-func (c *CamaraClient) ApiGet(
+func (c *CamaraClient) Do(
+	ctx context.Context,
+	method string,
 	endpoint string,
-	params url.Values,
 	target any,
 ) error {
-	requestURL, err := url.JoinPath(c.baseURL, endpoint)
+	req, err := http.NewRequestWithContext(
+		ctx,
+		method,
+		endpoint,
+		nil,
+	)
 	if err != nil {
 		return err
 	}
 
-	if len(params) > 0 {
-		requestURL += "?" + params.Encode()
-	}
-
-	resp, err := c.client.Get(requestURL)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return err
 	}
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("camara api retornou status: %d", resp.StatusCode)
+	}
+
+	// Caso seja uma request com resposta 204 esperada
+	// e não seja enviado um target para atribuir valor
+	if target == nil {
+		return nil
 	}
 
 	return json.NewDecoder(resp.Body).Decode(target)
 }
 
+func (c *CamaraClient) BuildURL(
+	endpoint string,
+	params url.Values,
+) (string, error) {
+	requestURL, err := url.JoinPath(c.baseURL, endpoint)
+	if err != nil {
+		return "", err
+	}
+
+	u, err := url.Parse(requestURL)
+	if err != nil {
+		return "", err
+	}
+
+	u.RawQuery = params.Encode()
+
+	return u.String(), nil
+}
+
+func (c *CamaraClient) ApiGet(
+	ctx context.Context,
+	endpoint string,
+	params url.Values,
+	target any,
+) error {
+	requestURL, err := c.BuildURL(endpoint, params)
+	if err != nil {
+		return err
+	}
+
+	if err := c.Do(
+		ctx,
+		http.MethodGet,
+		requestURL,
+		target,
+	); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *CamaraClient) GetDeputado(
+	ctx context.Context,
 	id int,
 ) (*DeputadoDetalhes, error) {
 	var response DeputadoDetalhesResponse
 
 	endpoint := fmt.Sprintf("deputados/%d", id)
 
-	if err := c.ApiGet(endpoint, nil, &response); err != nil {
+	if err := c.ApiGet(ctx, endpoint, nil, &response); err != nil {
 		return nil, fmt.Errorf("Busca detalhes do deputado %d: %w", id, err)
 	}
 
@@ -138,6 +192,7 @@ func (c *CamaraClient) GetDeputado(
 }
 
 func (c *CamaraClient) GetDeputadoDespesas(
+	ctx context.Context,
 	id int,
 	year int,
 	month int,
@@ -150,7 +205,7 @@ func (c *CamaraClient) GetDeputadoDespesas(
 	}
 	endpoint := fmt.Sprintf("deputados/%d/despesas", id)
 
-	if err := c.ApiGet(endpoint, params, &response); err != nil {
+	if err := c.ApiGet(ctx, endpoint, params, &response); err != nil {
 		return nil, fmt.Errorf("Busca despesas do deputado %d: %w", id, err)
 	}
 
