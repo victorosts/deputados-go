@@ -11,23 +11,44 @@ import (
 func TestBuildURL(t *testing.T) {
 	client := NewClient(DefaultConfig())
 
-	params := url.Values{}
-	params.Add("ano", "2026")
-	params.Add("mes", "3")
-
-	got, err := client.BuildURL(
-		"deputados/123/despesas",
-		params,
-	)
-
-	if err != nil {
-		t.Fatalf("esperava nil, recebeu %v", err)
+	tests := []struct {
+		name     string
+		endpoint string
+		params   url.Values
+		want     string
+	}{
+		{
+			name:     "without query params",
+			endpoint: "deputados/123",
+			params:   nil,
+			want:     "https://dadosabertos.camara.leg.br/api/v2/deputados/123",
+		},
+		{
+			name:     "with query params",
+			endpoint: "deputados/123/despesas",
+			params: url.Values{
+				"ano": []string{"2026"},
+				"mes": []string{"3"},
+			},
+			want: "https://dadosabertos.camara.leg.br/api/v2/deputados/123/despesas?ano=2026&mes=3",
+		},
 	}
 
-	want := "https://dadosabertos.camara.leg.br/api/v2/deputados/123/despesas?ano=2026&mes=3"
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := client.BuildURL(
+				tt.endpoint,
+				tt.params,
+			)
 
-	if got != want {
-		t.Errorf("esperava %s, recebeu %s", want, got)
+			if err != nil {
+				t.Fatalf("esperava nil, recebeu %v", err)
+			}
+
+			if got != tt.want {
+				t.Errorf("esperava %s, recebeu %s", tt.want, got)
+			}
+		})
 	}
 }
 
