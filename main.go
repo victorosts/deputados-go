@@ -4,32 +4,36 @@ import (
 	"context"
 	"deputados-go/internal/camara"
 	"fmt"
-	"math/rand"
+	"sync"
 )
 
 func main() {
-	fmt.Println("Iniciando aplicação")
-	config := camara.DefaultConfig()
-	camara := camara.NewClient(config)
+	fmt.Println("Programa Inicializado")
+
+	var wg sync.WaitGroup
 	ctx := context.Background()
+	client := camara.NewClient(camara.DefaultConfig())
+	id := 178937
 
-	deputados, err := camara.GetDeputados(ctx)
-	if err != nil {
-		fmt.Printf("Falha na solicitação dos dados dos deputados, ERR: %s", err.Error())
-		return
-	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		deputado, err := client.GetDeputado(ctx, id)
+		if err == nil {
+			fmt.Println(*deputado)
+		}
+	}()
 
-	fmt.Println("Gerando amostragem dos deputados")
-	deputado := deputados[rand.Intn(15)]
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		despesas, err := client.GetDeputadoDespesas(ctx, id, 2026, 3)
+		if err == nil {
+			fmt.Println(despesas)
+		}
+	}()
 
-	fmt.Printf("ID: %d - Nome: %s\n", deputado.ID, deputado.Nome)
+	wg.Wait()
 
-	despesas, err := camara.GetDeputadoDespesas(ctx, deputado.ID, 2026, 3)
-	if err != nil {
-		fmt.Printf("Falha na solicitação das despesas do deputado %s: %s", deputado.Nome, err)
-		return
-	}
-
-	despesa := despesas[0]
-	fmt.Printf("Despesa: %s\n", despesa.TipoDespesa)
+	fmt.Println("Programa Finalizado")
 }
