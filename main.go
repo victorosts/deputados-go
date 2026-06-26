@@ -4,36 +4,47 @@ import (
 	"context"
 	"deputados-go/internal/camara"
 	"fmt"
-	"sync"
+	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 func main() {
+	start := time.Now()
 	fmt.Println("Programa Inicializado")
 
-	var wg sync.WaitGroup
-	ctx := context.Background()
 	client := camara.NewClient(camara.DefaultConfig())
+	g, ctx := errgroup.WithContext(context.Background())
 	id := 178937
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		deputado, err := client.GetDeputado(ctx, id)
-		if err == nil {
-			fmt.Println(*deputado)
-		}
-	}()
+	var (
+		deputado *camara.DeputadoDetalhes
+		despesas []camara.Despesa
+	)
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		despesas, err := client.GetDeputadoDespesas(ctx, id, 2026, 3)
-		if err == nil {
-			fmt.Println(despesas)
-		}
-	}()
+	g.Go(func() error {
+		var err error
+		deputado, err = client.GetDeputado(ctx, id)
+		return err
+	})
 
-	wg.Wait()
+	g.Go(func() error {
+		var err error
+		despesas, err = client.GetDeputadoDespesas(ctx, id, 2026, 3)
+		return err
+	})
 
-	fmt.Println("Programa Finalizado")
+	if err := g.Wait(); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Printf("Deputado -> %s | ID -> %d\n", deputado.NomeCivil, deputado.ID)
+
+	for _, despesa := range despesas {
+		fmt.Printf("Despesa -> %s\n", despesa.TipoDespesa)
+		fmt.Printf("Data da despesa -> %s\n", despesa.DataDocumento)
+	}
+
+	fmt.Println("Programa Finalizado em:", time.Since(start))
 }
