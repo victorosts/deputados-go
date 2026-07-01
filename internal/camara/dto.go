@@ -12,6 +12,10 @@ type DeputadoDetalhesResponse struct {
 	Dados DeputadoDTO `json:"dados"`
 }
 
+type ProposicaoResponse struct {
+	Dados []ProposicaoDTO `json:"dados"`
+}
+
 type DeputadoDTO struct {
 	ID           int    `json:"id"`
 	NomeCivil    string `json:"nomeCivil"`
@@ -33,4 +37,10 @@ type DespesaDTO struct {
 	ValorLiquido      float64 `json:"valorLiquido"`
 	ValorGlosa        float64 `json:"valorGlosa"`
 	UrlDocumento      string  `json:"urlDocumento"`
+}
+
+type ProposicaoDTO struct {
+	ID               int    `json:"id"`
+	Ementa           string `json:"ementa"`
+	DataApresentacao string `json:"dataApresentacao"`
 }

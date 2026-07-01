@@ -4,6 +4,7 @@ import (
 	"context"
 	"deputados-go/internal/camara"
 	"deputados-go/internal/deputados"
+	"deputados-go/internal/proposicoes"
 	"fmt"
 	"time"
 
@@ -16,12 +17,13 @@ func main() {
 
 	client := camara.NewClient(camara.DefaultConfig())
 	deputadoService := deputados.NewService(client)
+	proposicoesService := proposicoes.NewService(client)
 	g, ctx := errgroup.WithContext(context.Background())
 	id := 178937
 
 	var (
-		deputado *deputados.Deputado
-		despesas []deputados.Despesa
+		deputado            *deputados.Deputado
+		deputadoProposicoes []proposicoes.Proposicao
 	)
 
 	g.Go(func() error {
@@ -32,7 +34,7 @@ func main() {
 
 	g.Go(func() error {
 		var err error
-		despesas, err = deputadoService.ListarDespesas(ctx, id, 2026, 3)
+		deputadoProposicoes, err = proposicoesService.ListarProposicoes(ctx, id)
 		return err
 	})
 
@@ -43,9 +45,10 @@ func main() {
 
 	fmt.Printf("Deputado -> %s | ID -> %d\n", deputado.Nome, deputado.ID)
 
-	for _, despesa := range despesas {
-		fmt.Printf("Despesa -> %s\n", despesa.TipoDespesa)
-		fmt.Printf("Data da despesa -> %s\n", despesa.DataDocumento)
+	for _, proposicao := range deputadoProposicoes {
+		fmt.Printf("ID da proposição -> %d\n", proposicao.ID)
+		fmt.Println(proposicao.Ementa)
+		fmt.Printf("Data da proposição -> %s\n\n", proposicao.DataApresentacao)
 	}
 
 	fmt.Println("Programa Finalizado em:", time.Since(start))
