@@ -3,29 +3,13 @@ package camara
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strconv"
 )
-
-type Deputado struct {
-	ID   int    `json:"id"`
-	Nome string `json:"nome"`
-}
-
-type DeputadosResponse struct {
-	Dados []Deputado `json:"dados"`
-}
-
-type DeputadoDetalhes struct {
-	ID        int    `json:"id"`
-	NomeCivil string `json:"nomeCivil"`
-}
-
-type DeputadoDetalhesResponse struct {
-	Dados DeputadoDetalhes `json:"dados"`
-}
 
 func (c *Client) GetDeputados(
 	ctx context.Context,
-) ([]Deputado, error) {
+) ([]DeputadoDTO, error) {
 	var response DeputadosResponse
 
 	if err := c.ApiGet(ctx, "deputados", nil, &response); err != nil {
@@ -38,7 +22,7 @@ func (c *Client) GetDeputados(
 func (c *Client) GetDeputado(
 	ctx context.Context,
 	id int,
-) (*DeputadoDetalhes, error) {
+) (*DeputadoDTO, error) {
 	var response DeputadoDetalhesResponse
 
 	endpoint := fmt.Sprintf("deputados/%d", id)
@@ -48,4 +32,25 @@ func (c *Client) GetDeputado(
 	}
 
 	return &response.Dados, nil
+}
+
+func (c *Client) GetDespesas(
+	ctx context.Context,
+	id int,
+	year int,
+	month int,
+) ([]DespesaDTO, error) {
+	var response DespesasResponse
+
+	params := url.Values{
+		"ano": []string{strconv.Itoa(year)},
+		"mes": []string{strconv.Itoa(month)},
+	}
+	endpoint := fmt.Sprintf("deputados/%d/despesas", id)
+
+	if err := c.ApiGet(ctx, endpoint, params, &response); err != nil {
+		return nil, fmt.Errorf("Busca despesas do deputado %d: %w", id, err)
+	}
+
+	return response.Dados, nil
 }

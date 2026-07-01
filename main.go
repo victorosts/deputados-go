@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"deputados-go/internal/camara"
+	"deputados-go/internal/deputados"
 	"fmt"
 	"time"
 
@@ -14,23 +15,24 @@ func main() {
 	fmt.Println("Programa Inicializado")
 
 	client := camara.NewClient(camara.DefaultConfig())
+	deputadoService := deputados.NewService(client)
 	g, ctx := errgroup.WithContext(context.Background())
 	id := 178937
 
 	var (
-		deputado *camara.DeputadoDetalhes
-		despesas []camara.Despesa
+		deputado *deputados.Deputado
+		despesas []deputados.Despesa
 	)
 
 	g.Go(func() error {
 		var err error
-		deputado, err = client.GetDeputado(ctx, id)
+		deputado, err = deputadoService.ListarDeputadoDetalhes(ctx, id)
 		return err
 	})
 
 	g.Go(func() error {
 		var err error
-		despesas, err = client.GetDeputadoDespesas(ctx, id, 2026, 3)
+		despesas, err = deputadoService.ListarDespesas(ctx, id, 2026, 3)
 		return err
 	})
 
@@ -39,7 +41,7 @@ func main() {
 		return
 	}
 
-	fmt.Printf("Deputado -> %s | ID -> %d\n", deputado.NomeCivil, deputado.ID)
+	fmt.Printf("Deputado -> %s | ID -> %d\n", deputado.Nome, deputado.ID)
 
 	for _, despesa := range despesas {
 		fmt.Printf("Despesa -> %s\n", despesa.TipoDespesa)
