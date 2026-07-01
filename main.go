@@ -4,11 +4,8 @@ import (
 	"context"
 	"deputados-go/internal/camara"
 	"deputados-go/internal/deputados"
-	"deputados-go/internal/proposicoes"
 	"fmt"
 	"time"
-
-	"golang.org/x/sync/errgroup"
 )
 
 func main() {
@@ -17,38 +14,22 @@ func main() {
 
 	client := camara.NewClient(camara.DefaultConfig())
 	deputadoService := deputados.NewService(client)
-	proposicoesService := proposicoes.NewService(client)
-	g, ctx := errgroup.WithContext(context.Background())
-	id := 178937
+	// id := 178937
 
-	var (
-		deputado            *deputados.Deputado
-		deputadoProposicoes []proposicoes.Proposicao
+	var data []deputados.Deputado
+	data, err := deputadoService.ListarDeputados(
+		context.Background(),
+		camara.DeputadoFilter{
+			UF: "MG",
+		},
 	)
 
-	g.Go(func() error {
-		var err error
-		deputado, err = deputadoService.ListarDeputadoDetalhes(ctx, id)
-		return err
-	})
-
-	g.Go(func() error {
-		var err error
-		deputadoProposicoes, err = proposicoesService.ListarProposicoes(ctx, id)
-		return err
-	})
-
-	if err := g.Wait(); err != nil {
+	if err != nil {
 		fmt.Println(err)
-		return
 	}
 
-	fmt.Printf("Deputado -> %s | ID -> %d\n", deputado.Nome, deputado.ID)
-
-	for _, proposicao := range deputadoProposicoes {
-		fmt.Printf("ID da proposição -> %d\n", proposicao.ID)
-		fmt.Println(proposicao.Ementa)
-		fmt.Printf("Data da proposição -> %s\n\n", proposicao.DataApresentacao)
+	for _, deputado := range data {
+		fmt.Printf("ID: %d, Nome: %s, Partido: %s, UF: %s\n", deputado.ID, deputado.Nome, deputado.SiglaPartido, deputado.SiglaUf)
 	}
 
 	fmt.Println("Programa Finalizado em:", time.Since(start))

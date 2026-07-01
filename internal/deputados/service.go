@@ -19,8 +19,9 @@ func NewService(
 
 func (s *Service) ListarDeputados(
 	ctx context.Context,
+	filter camara.DeputadoFilter,
 ) ([]Deputado, error) {
-	dtos, err := s.camara.GetDeputados(ctx)
+	dtos, err := s.camara.GetDeputados(ctx, filter)
 
 	if err != nil {
 		return nil, err
@@ -36,8 +37,10 @@ func (s *Service) ListarDeputados(
 		deputados = append(
 			deputados,
 			Deputado{
-				ID:   dto.ID,
-				Nome: dto.Nome,
+				ID:           dto.ID,
+				Nome:         dto.Nome,
+				SiglaPartido: dto.SiglaPartido,
+				SiglaUf:      dto.SiglaUf,
 			},
 		)
 	}
@@ -48,16 +51,23 @@ func (s *Service) ListarDeputados(
 func (s *Service) ListarDeputadoDetalhes(
 	ctx context.Context,
 	id int,
-) (*Deputado, error) {
+) (*Detalhes, error) {
 	dto, err := s.camara.GetDeputado(ctx, id)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &Deputado{
-		ID:   dto.ID,
-		Nome: dto.NomeCivil,
+	return &Detalhes{
+		ID:                  dto.ID,
+		NomeCivil:           dto.NomeCivil,
+		CPF:                 dto.CPF,
+		Sexo:                dto.Sexo,
+		DataNascimento:      dto.DataNascimento,
+		DataFalecimento:     dto.DataFalecimento,
+		UFNascimento:        dto.UFNascimento,
+		Escolaridade:        dto.Escolaridade,
+		MunicipioNascimento: dto.MunicipioNascimento,
 	}, nil
 }
 

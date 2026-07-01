@@ -9,10 +9,25 @@ import (
 
 func (c *Client) GetDeputados(
 	ctx context.Context,
+	filter DeputadoFilter,
 ) ([]DeputadoDTO, error) {
 	var response DeputadosResponse
 
-	if err := c.ApiGet(ctx, "deputados", nil, &response); err != nil {
+	params := url.Values{}
+
+	if filter.UF != "" {
+		params.Set("siglaUf", filter.UF)
+	}
+
+	if filter.Partido != "" {
+		params.Set("siglaPartido", filter.Partido)
+	}
+
+	if filter.Pagina > 0 {
+		params.Set("pagina", strconv.Itoa(filter.Pagina))
+	}
+
+	if err := c.ApiGet(ctx, "deputados", params, &response); err != nil {
 		return nil, fmt.Errorf("Erro ao buscar deputados: %w", err)
 	}
 
@@ -22,7 +37,7 @@ func (c *Client) GetDeputados(
 func (c *Client) GetDeputado(
 	ctx context.Context,
 	id int,
-) (*DeputadoDTO, error) {
+) (*DeputadoDetalhesDTO, error) {
 	var response DeputadoDetalhesResponse
 
 	endpoint := fmt.Sprintf("deputados/%d", id)
